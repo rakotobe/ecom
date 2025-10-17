@@ -307,75 +307,6 @@ GET /orders
 GET /orders/{id}
 ```
 
-## Code Organization Rationale
-
-### Why Clean Architecture?
-
-1. **Independence**: Business logic is independent of frameworks, databases, and UI
-2. **Testability**: Domain logic can be tested without any infrastructure
-3. **Maintainability**: Changes in one layer don't affect others
-4. **Flexibility**: Easy to swap implementations (e.g., change database)
-
-### Key Design Decisions
-
-#### 1. Value Objects for Business Concepts
-```go
-// Money ensures currency consistency and prevents invalid states
-type Money struct {
-    amount   int64  // cents to avoid floating point issues
-    currency string
-}
-```
-
-**Benefits**:
-- Type safety (can't accidentally add different currencies)
-- Encapsulated validation
-- Clear intent
-
-#### 2. Entity Reconstruction Pattern
-```go
-// NewProduct creates a new product (generates ID, timestamps)
-func NewProduct(...) (*Product, error)
-
-// ReconstructProduct rebuilds from persistence (uses existing ID, timestamps)
-func ReconstructProduct(...) *Product
-```
-
-**Benefits**:
-- Clear distinction between creation and reconstruction
-- Preserves domain rules
-- No setters needed
-
-#### 3. Repository Interfaces in Domain
-```go
-// Domain defines the contract
-type ProductRepository interface {
-    Save(ctx context.Context, product *Product) error
-    FindByID(ctx context.Context, id string) (*Product, error)
-}
-
-// Infrastructure implements it
-type ProductRepositoryImpl struct { ... }
-```
-
-**Benefits**:
-- Domain owns its persistence needs
-- Easy to mock for testing
-- Infrastructure is a plugin
-
-#### 4. Dependency Injection
-```go
-// main.go wires everything together
-productRepo := persistence.NewProductRepository(db)
-productService := service.NewProductService(productRepo)
-productHandler := handler.NewProductHandler(productService)
-```
-
-**Benefits**:
-- No global state
-- Explicit dependencies
-- Testable components
-
 ## Testing Strategy
 
 ### Unit Tests
@@ -404,30 +335,6 @@ go test ecom-backend/api/...
 - Application layer: 80%+
 - Infrastructure layer: 70%+
 - API layer: 70%+
-
-## SOLID Principles Applied
-
-### Single Responsibility Principle
-- Each layer has one reason to change
-- Handlers only handle HTTP concerns
-- Services only orchestrate business logic
-- Entities only contain business rules
-
-### Open/Closed Principle
-- Repository interfaces allow new implementations without changing domain
-- Middleware pattern allows adding features without modifying handlers
-
-### Liskov Substitution Principle
-- Any repository implementation can replace another
-- Mock repositories work interchangeably with real ones
-
-### Interface Segregation Principle
-- Small, focused repository interfaces
-- Handlers depend only on what they need
-
-### Dependency Inversion Principle
-- High-level domain doesn't depend on low-level infrastructure
-- Both depend on abstractions (interfaces)
 
 ## Project Structure
 
@@ -463,39 +370,6 @@ ecom/
 ├── docker-compose.yml       # Service orchestration
 └── README.md                # This file
 ```
-
-## Common Operations
-
-### Adding a New Feature
-
-1. **Start with Domain**: Define entities, value objects, interfaces
-2. **Application Layer**: Create DTOs and services
-3. **Infrastructure**: Implement repository
-4. **API**: Add handlers and routes
-5. **Tests**: Write unit and integration tests
-6. **Frontend**: Create components if needed
-
-### Database Migrations
-
-Migrations run automatically on startup. To add a new migration:
-
-1. Edit `backend/infrastructure/database/postgres.go`
-2. Add migration SQL to the `migrations` slice
-3. Restart the backend
-
-### Environment Variables
-
-#### Backend
-- `DB_HOST`: PostgreSQL host (default: localhost)
-- `DB_PORT`: PostgreSQL port (default: 5555 external, 5432 internal)
-- `DB_USER`: Database user (default: postgres)
-- `DB_PASSWORD`: Database password (default: postgres)
-- `DB_NAME`: Database name (default: ecom)
-- `DB_SSLMODE`: SSL mode (default: disable)
-- `PORT`: Server port (default: 8888 external, 8080 internal)
-
-#### Frontend
-- `VITE_API_URL`: Backend API URL (default: http://localhost:8888/api/v1)
 
 ## Troubleshooting
 
